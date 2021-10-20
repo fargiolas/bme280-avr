@@ -6,6 +6,7 @@
 #include <util/delay.h>
 
 #include <i2cmaster.h>
+#include <bme280.h>
 
 #define BAUD 57600
 #include <util/setbaud.h>
