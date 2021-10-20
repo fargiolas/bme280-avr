@@ -16,7 +16,7 @@ OBJCOPY=avr-objcopy
 AVRSIZE=avr-size
 AVRDUDE=avrdude
 
-EXTRAINCDIRS =
+EXTRAINCDIRS = include
 OPT = s
 
 CFLAGS  = -Wall -std=gnu99
@@ -38,7 +38,7 @@ MATH_LIB = -lm
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(PRINTF_LIB_FLOAT) $(MATH_LIB)
 
-SOURCES=$(TARGET).c
+SOURCES=$(TARGET).c src/twimaster.c
 OBJECTS=$(SOURCES:.c=.o)
 
 .PHONY: all clean flash upload debug monitor kill-monitor
@@ -77,4 +77,4 @@ debug:
 	@echo
 
 clean:
-	rm -f $(TARGET).elf $(TARGET).hex $(TARGET).obj $(TARGET).map $(TARGET).o
+	rm -f $(TARGET).elf $(TARGET).hex $(TARGET).obj $(TARGET).map $(SOURCES:.c=.o)
