@@ -11,7 +11,9 @@
 #include <i2cmaster.h>
 #include <bme280.h>
 
-
+/* Bosch BME280 AVR "port": it just needs a couple of
+ * platform-specific functions for i2c read and write and delays and
+ * it works out of the box */
 int8_t user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
     uint8_t dev_id = *((uint8_t *) intf_ptr);
@@ -50,6 +52,8 @@ void user_delay_us(uint32_t period, void *intf_ptr)
     _delay_us(period);
 }
 
+
+/* that's it, now we can just use the library straight from bosch examples */
 static struct bme280_dev bme;
 static uint8_t bme280_i2c_addr;
 
@@ -57,18 +61,21 @@ void bme280_setup(void)
 {
     int8_t rslt = BME280_OK;
 
-    bme280_i2c_addr = BME280_I2C_ADDR_SEC;
+    bme280_i2c_addr = BME280_I2C_ADDR_SEC; /* Adafruit BME280 uses secondary address 0x77 */
     bme.intf = BME280_I2C_INTF;
     bme.intf_ptr = &bme280_i2c_addr;
+    /* map r/w and delay to platform functions */
     bme.read = user_i2c_read;
     bme.write = user_i2c_write;
     bme.delay_us = user_delay_us;
 
-    if (bme280_init(&bme) != BME280_OK) {
-        printf("bme: no sensor found\n");
+    rslt = bme280_init(&bme);
+    if (rslt != BME280_OK) {
+        printf("Failed to initialize the device (code %+d).\n", rslt);
         return;
     }
 
+    /* no filtering or oversampling */
     bme.settings.osr_h = BME280_OVERSAMPLING_1X;
     bme.settings.osr_p = BME280_OVERSAMPLING_1X;
     bme.settings.osr_t = BME280_OVERSAMPLING_1X;
@@ -79,13 +86,13 @@ void bme280_setup(void)
 
     rslt = bme280_set_sensor_settings(settings_sel, &bme);
     if (rslt != BME280_OK) {
-        printf("bme: set sensor settings failed, (code %d).\n", rslt);
+        printf("Set sensor settings failed, (code %d).\n", rslt);
         return;
     }
 
     rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &bme);
     if (rslt != BME280_OK){
-        printf("bme: set forced mode failed, (code %d).\n", rslt);
+        printf("Set forced mode failed, (code %d).\n", rslt);
         return;
     }
 }
@@ -93,25 +100,30 @@ void bme280_setup(void)
 int main (void)
 {
     uart_init();
+    /* map std streams to uart so we can use printf */
     FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_RW);
     stdout = stdin = &uart_output;
 
     i2c_init();
     bme280_setup();
 
+    /* calculate minimum delay from subsequent measurements given the current settings */
+    uint32_t req_delay = bme280_cal_meas_delay(&bme.settings);
+
     for (;;) {
-        uint32_t req_delay;
         int8_t rslt = BME280_OK;
 
         rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &bme);
         if (rslt != BME280_OK){
-            printf("bme: set forced mode failed, (code %d).\n", rslt);
+            printf("Set forced mode failed, (code %d).\n", rslt);
             continue;
         }
 
-        req_delay = bme280_cal_meas_delay(&bme.settings);
+
+        /* wait for measurement to complete */
         bme.delay_us(req_delay, bme.intf_ptr);
 
+        /* gather and print data */
         struct bme280_data comp_data;
 
         rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &bme);
