@@ -38,7 +38,7 @@ MATH_LIB = -lm
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(PRINTF_LIB_FLOAT) $(MATH_LIB)
 
-SOURCES=$(TARGET).c src/twimaster.c src/bme280.c
+SOURCES=$(TARGET).c src/uart.c src/twimaster.c src/bme280.c
 OBJECTS=$(SOURCES:.c=.o)
 
 .PHONY: all clean flash upload debug monitor kill-monitor
